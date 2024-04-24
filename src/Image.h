@@ -61,6 +61,8 @@ public:
     // Return an absolute difference betweenthe given images
     static Image compare(const Image & img1, const Image & img2);
 
+    Image downsample();
+
 private:
     int _width;
     int _height;

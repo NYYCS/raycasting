@@ -96,3 +96,42 @@ Image::compare(const Image& img1, const Image & img2)
 
     return diff;
 }
+
+Image
+Image::downsample()
+{
+    // No stride downsample
+    int w = _width / 3;
+    int h = _height / 3;
+
+    Image ret(w, h);
+
+    std::vector<std::vector<float>> kernel = {
+        { 1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f },
+        { 2.0f / 16.0f, 4.0f / 16.0f, 2.0f / 16.0f },
+        { 1.0f / 16.0f, 2.0f / 16.0f, 1.0f / 16.0f }
+    };
+
+    for (int i = 0; i < h; i++) {
+        for (int j = 0; j < w; j++) {
+            Vector3f pixel = Vector3f(0, 0, 0);
+
+            for (int ki = 0; ki < 3; ki++) {
+                for (int kj = 0; kj < 3; kj++) {
+
+                    int x = 3 * j + kj;
+                    int y = 3 * i + ki;
+
+                    if (x < 0 || x >= _width || y < 0 || y >= _height)
+                        continue;
+
+                    pixel += kernel[ki][kj] * getPixel(x, y);
+                }
+            }
+
+            ret.setPixel(j, i, pixel);
+        }
+    }
+
+    return ret;
+}

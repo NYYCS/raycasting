@@ -7,7 +7,11 @@
 #include "VecUtils.h"
 
 #include <limits>
-
+#include <random>
+#include <chrono>
+  
+std::mt19937 generator(42);
+std::uniform_real_distribution<float> distribute(0.0f, 1.0f);
 
 Renderer::Renderer(const ArgParser &args) :
     _args(args),
@@ -20,6 +24,11 @@ Renderer::Render()
 {
     int w = _args.width;
     int h = _args.height;
+
+    if (_args.filter) {
+        w = w * 3;
+        h = h * 3;
+    }
 
     Image image(w, h);
     Image nimage(w, h);
@@ -38,20 +47,48 @@ Renderer::Render()
             float ndcx = 2 * (x / (w - 1.0f)) - 1.0f;
             // Use PerspectiveCamera to generate a ray.
             // You should understand what generateRay() does.
-            Ray r = cam->generateRay(Vector2f(ndcx, ndcy));
+            Vector3f color;
+            Vector3f normal;
+            float t;
 
-            Hit h;
-            Vector3f color = traceRay(r, cam->getTMin(), _args.bounces, h);
+            if (_args.jitter) {
+                for (int i = 0; i < 16; i++)
+                {
+                    float ox = distribute(generator) * 2 * (1.0f / (w - 1.0f));
+                    float oy = distribute(generator) * 2 * (1.0f / (h - 1.0f));
+
+                    Ray r = cam->generateRay(Vector2f(ndcx + ox, ndcy + oy));
+                    Hit h;
+
+                    color += traceRay(r, cam->getTMin(), _args.bounces, h) / 16.0f;
+                    normal += h.getNormal() / 16.0f;
+                    t += h.getT() / 16.0f;
+                }
+            } else {
+                Ray r = cam->generateRay(Vector2f(ndcx, ndcy));
+                Hit h;
+
+                color = traceRay(r, cam->getTMin(), _args.bounces, h);
+                normal = h.getNormal();
+                t = h.getT();
+            }
 
             image.setPixel(x, y, color);
-            nimage.setPixel(x, y, (h.getNormal() + 1.0f) / 2.0f);
+            nimage.setPixel(x, y, (normal + 1.0f) / 2.0f);
             float range = (_args.depth_max - _args.depth_min);
             if (range) {
-                dimage.setPixel(x, y, Vector3f((h.t - _args.depth_min) / range));
+                dimage.setPixel(x, y, Vector3f((t - _args.depth_min) / range));
             }
         }
     }
+
     // END SOLN
+
+    if (_args.filter) {
+        image = image.downsample();
+        dimage = dimage.downsample();
+        nimage = nimage.downsample();
+    }
 
     // save the files 
     if (_args.output_file.size()) {
