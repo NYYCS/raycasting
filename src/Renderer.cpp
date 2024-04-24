@@ -81,7 +81,7 @@ Renderer::traceRay(const Ray &r,
 
         Vector3f intensity = _scene.getAmbientLight() * h.getMaterial()->getDiffuseColor();
 
-        Vector3f p = r.getOrigin() + r.getDirection() * h.getT();
+        Vector3f p = r.pointAtParameter(h.getT());
         Vector3f dirToLight;
         Vector3f lightIntensity;
         float distToLight;
@@ -92,10 +92,19 @@ Renderer::traceRay(const Ray &r,
             intensity += h.getMaterial()->shade(r, h, dirToLight, lightIntensity);
         }
 
+        if (bounces > 0) {
+            Vector3f newOrigin = r.pointAtParameter(h.getT());
+            Vector3f newDirection = r.getDirection() - 2 * h.getNormal() * Vector3f::dot(r.getDirection(), h.getNormal());
+            Ray newRay = Ray(newOrigin, newDirection);
+            Hit newHit;
+        
+            intensity += h.getMaterial()->getSpecularColor() * traceRay(newRay, 0.0001, bounces - 1, newHit);
+        }
+
         return intensity;
 
     } else {
-        return Vector3f(0, 0, 0);
+        return _scene.getBackgroundColor(r.getDirection());
     };
 }
 
