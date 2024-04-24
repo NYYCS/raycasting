@@ -84,11 +84,22 @@ Renderer::traceRay(const Ray &r,
         Vector3f p = r.pointAtParameter(h.getT());
         Vector3f dirToLight;
         Vector3f lightIntensity;
+
         float distToLight;
+        float epsilon = std::numeric_limits<float>::epsilon();
 
         for (int i = 0; i < _scene.getNumLights(); i++) {
             Light *light = _scene.getLight(i);
             light->getIllumination(p, dirToLight, lightIntensity, distToLight);
+
+            // Check for if light is blocked by some object
+
+            Ray newRay = Ray(p, dirToLight);
+            Hit newHit;
+
+            if (_scene.getGroup()->intersect(newRay, 0.0001, newHit))
+                continue;
+
             intensity += h.getMaterial()->shade(r, h, dirToLight, lightIntensity);
         }
 
